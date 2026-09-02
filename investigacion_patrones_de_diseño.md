@@ -113,3 +113,42 @@
 - El catálogo **GoF (Gang of Four)** fue creado en 1994 pensando en lenguajes **orientados a objetos** como C++ y Smalltalk, por eso lenguajes funcionales o declarativos tienen equivalentes distintos.
 - En lenguajes **funcionales puros** (Haskell) o **multiparadigma con fuerte influencia funcional** (Scala, Elixir), los patrones se reemplazan por **abstracciones algebraicas** (Monad, Functor) que cumplen un rol similar pero desde otra lógica.
 - En lenguajes de **scripting** (Perl, Lua, PHP en sus inicios) el uso de patrones formales es opcional y depende del tamaño del proyecto, no del lenguaje en sí.
+
+---
+
+# Tabla de Frameworks por Lenguaje: Paradigmas y Patrones que Refuerzan
+
+## 6. Frameworks principales y su relación con paradigmas/patrones
+
+| # | Lenguaje | Framework(s) principales | Patrón(es) de diseño que impone o favorece | Paradigma que refuerza |
+|---|----------|---------------------------|----------------------------------------------|--------------------------|
+| 1 | **Python** | Django, Flask, FastAPI | Django: MVC (MTV), Active Record (ORM) / Flask: Factory, Singleton (app context) / FastAPI: Dependency Injection | OO + funcional |
+| 2 | **Java** | Spring, Spring Boot, Hibernate | Dependency Injection, Factory, Proxy, Repository, MVC | OO |
+| 3 | **C++** | Qt, Boost, Unreal Engine | Observer (signals/slots en Qt), Factory, Template Method, Singleton | OO + genérico |
+| 4 | **C#** | .NET / ASP.NET Core, Entity Framework | MVVM, Repository, Dependency Injection, MVC | OO + eventos |
+| 5 | **JavaScript** | React, Vue, Express.js | React: Composition, Observer (hooks/estado) / Vue: MVVM / Express: Middleware pattern | Funcional + eventos |
+| 6 | **TypeScript** | Angular, NestJS | Angular: Dependency Injection, MVVM / NestJS: Decorator, Module, DI | OO tipado + funcional |
+| 7 | **Ruby** | Ruby on Rails | Active Record, MVC, Convention over Configuration | OO |
+| 8 | **PHP** | Laravel, Symfony | Laravel: Active Record (Eloquent), Facade, Service Container (DI) / Symfony: MVC, DI | OO + procedural |
+| 9 | **Go** | Gin, Echo, Fiber | Middleware pattern, Functional Options, Interface-based DI | Concurrente + procedural |
+| 10 | **Rust** | Actix-web, Rocket, Tokio | Builder, Strategy (traits), Async/Await pattern | Funcional + sistemas |
+| 11 | **Swift** | SwiftUI, UIKit, Vapor | SwiftUI: Declarative UI, Observer (Combine) / UIKit: Delegate, MVC | OO + protocolos |
+| 12 | **Kotlin** | Ktor, Jetpack Compose | Ktor: DSL Builder, DI / Compose: Declarative UI, Observer (State) | OO + funcional |
+| 13 | **Haskell** | Yesod, Servant | Monad Transformer, Type-level DSL | Funcional puro |
+| 14 | **Scala** | Play Framework, Akka | Akka: Actor Model / Play: MVC, DI (Guice) | Funcional + OO |
+| 15 | **SQL** | (no aplica framework tradicional; motores: PostgreSQL, MySQL) | Query Builder (via ORMs externos) | Declarativo |
+| 16 | **C** | GTK, libuv | Callback pattern, Event Loop, Opaque Pointer | Procedural |
+| 17 | **Erlang / Elixir** | Phoenix (Elixir), OTP (Erlang) | Supervisor Tree, GenServer, MVC (Phoenix) | Funcional + concurrente |
+| 18 | **Lua** | Love2D, OpenResty | Module pattern, Event-driven callbacks | Procedural + OO ligero |
+| 19 | **Perl** | Mojolicious, Catalyst | MVC, Factory (uso informal) | Procedural + OO opcional |
+| 20 | **R** | Shiny, tidyverse | Shiny: Reactive Programming (Observer) / tidyverse: Pipeline/Functional composition | Funcional + datos |
+
+---
+
+## 7. Glosario de conceptos nuevos en esta tabla
+
+| Concepto | Definición |
+|-----------|-----------|
+| **Middleware pattern** | Cadena de funciones que procesan una petición/respuesta de forma secuencial antes de llegar al destino final (común en frameworks web como Express, Gin) |
+| **Convention over Configuration** | Filosofía de diseño donde el framework asume configuraciones por defecto sensatas, reduciendo la necesidad de configurarlo todo explícitamente (Rails) |
+| **Service Container** | Contenedor que gestiona la creación y resolución de dependencias de una aplicación (usado
