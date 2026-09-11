@@ -1,0 +1,36 @@
+# TallerPro (Node/Express) — Taller mecánico
+
+## 0. La documentación del proyecto no corresponde al código
+
+documentacion/SISTEMA.txt describe el sistema como "Clínica Dental Sonrisa 1.0" (donde "las órdenes son tratamientos" y "los mecánicos son odontólogos") y prohíbe expresamente las tablas autos, refacciones — que son justo las que el código usa. También afirma que está "prohibido implementar Chain of Responsibility con clases", cuando el propio código sí lo implementa (ver punto 1).
+
+Por qué es un problema: una documentación desincronizada del código genera confianza falsa en cualquiera que la lea, y en este caso contradice directamente lo que el código hace, lo que sugiere que nunca se validó contra la implementación real.
+
+Solución a futuro: tratar la documentación como código (revisarla/actualizarla en el mismo PR que el código que describe) y validar automáticamente que las entidades y patrones mencionados coincidan con la implementación real.
+
+---
+
+## 1. Problemas de seguridad y arquitectura encontrados
+
+| # | Problema | Solución propuesta |
+|---|---|---|
+| 1 | Existe una implementación real de Chain of Responsibility (cadena/Handler.js: Handler, AuthHandler, BitacoraHandler) — justo lo que la documentación dice que está prohibido — pero solo se usa en la ruta /nueva; las rutas /, /inventario y /entrega reimplementan su propia verificación de sesión/cookie de forma duplicada e inconsistente en vez de reutilizar esa misma cadena. | Unificar toda la verificación de acceso pasando por la misma cadena de Handlers (o por un middleware real de Express) en todas las rutas protegidas, no solo en una. |
+| 2 | En /login, la consulta se arma concatenando strings ("...WHERE correo='"+req.body.correo+"' AND clave='"+req.body.clave+"'"): inyección SQL. La contraseña se compara en texto plano contra la columna clave. | Usar mysql2 con placeholders (?) y almacenar contraseñas con bcrypt. |
+| 3 | Al iniciar sesión como jefe, se coloca una cookie admin_bypass sin firmar; en la ruta / y en AuthHandler, basta con tener esa cookie para que el servidor asuma req.session.tid = 1 sin verificar que ese id realmente exista ni que la cookie sea legítima: cualquiera puede crear esa cookie a mano y obtener acceso de jefe. | Eliminar por completo esta cookie y depender únicamente de la sesión verificada en servidor (express-session con datos firmados en el propio store de sesión, no en una cookie de valor libre). |
+| 4 | /entrega?id=X usa el método GET para marcar una orden como entregada y liberar al mecánico, sin ningún control de sesión/autenticación, y con id interpolado directo en dos sentencias SQL ("UPDATE ordenes SET estatus=\"entregada\" WHERE id="+id): inyección SQL + violación de la semántica HTTP (GET debería ser una operación segura/idempotente, no debería modificar datos) + vulnerable a CSRF (bastaría un <img src="..."> en cualquier página). | Cambiar el método a POST, exigir sesión válida antes de ejecutar la acción, y usar parámetros (?) en las consultas. |
+| 5 | /inventario no exige ninguna sesión y hace una consulta adicional por cada renglón de refacciones_uso (patrón N+1), con el campo tipo interpolado directo en el SQL de la segunda consulta ("...WHERE tipo='"+r.tipo+"'"): inyección SQL sin ningún control de acceso, exponiendo datos internos del inventario a cualquiera. | Proteger la ruta con el mismo mecanismo de autenticación del resto del sitio, reemplazar el ciclo por un JOIN y parametrizar la consulta. |
+| 6 | El parseo de cookies se implementó "a mano" (req.cookies={} construido con .split(';') y .split('=')) en vez de usar el paquete estándar cookie-parser, con manejo frágil de casos especiales (valores con = adicional, valores codificados con encodeURIComponent, etc.). | Usar el paquete cookie-parser, que ya es el estándar del ecosistema Express y maneja estos casos correctamente. |
+| 7 | CobroOrden.manejar() arma un XML a mano ('<cobro><monto>'+costo+'</monto></cobro>') y llama a https://banco-taller.local/pay, validando la respuesta con t.includes('<codigo>00</codigo>'): sin firma ni verificación criptográfica, fácilmente falsificable. | Integrar un SDK de pago certificado (tokenización PCI-DSS) y validar con firma/HMAC del proveedor, no con comparación de texto. |
+| 8 | Tras un cobro exitoso, CobroOrden.manejar() hace 3 escrituras separadas (orden, refacciones_uso, estado del mecánico) usando la misma conexión pero sin transacción: si una falla a medio camino, el estado queda inconsistente (p. ej. mecánico marcado ocupado sin que exista la orden). | Envolver las 3 escrituras en una transacción real (conn.beginTransaction() / commit() / rollback() de mysql2). |
+| 9 | El transporte de correo se configura con nodemailer.createTransport({ jsonTransport: true }): esto significa que nunca se envía correo real, sólo se serializa el mensaje a JSON internamente — probablemente un remanente de pruebas que nunca se reemplazó por un transporte SMTP real. | Configurar un transporte SMTP real (o un proveedor como SendGrid/SES) antes de considerar el flujo de notificaciones como terminado. |
+| 10 | Los costos por tipo de servicio (if (tipo==='frenos') costo=1200;, etc.) están hardcodeados con números mágicos directamente dentro de la clase CobroOrden, mezclando lógica de negocio con el manejo de la petición HTTP. | Mover la tabla de precios a una capa de servicio/configuración o a una tabla de tarifas en la base de datos. |
+| 11 | app.old.js es un archivo que solo re-exporta app.js (module.exports=require('./app.js')), con el comentario "copia de 2022, no borrar por si acaso": código muerto que ni siquiera se usa en ningún require real del proyecto. | Eliminarlo; usar git log/tags para recuperar versiones anteriores si se necesitan, en vez de dejar archivos "por si acaso". |
+| 12 | express-session se configura con secret: 'password' (débil, hardcodeado y predecible) y sin saveUninitialized: false, lo que crea sesiones innecesarias para visitantes anónimos. | Usar un secreto largo y aleatorio provisto por variable de entorno, y saveUninitialized: false. |
+| 13 | public/css/ruido.css contiene 90 clases casi idénticas (.mod_caja_0 … .mod_caja_89) sin ningún valor real de diseño. | Eliminarlo y sustituirlo por una hoja de estilos real con variables/tokens de diseño reutilizables. |
+| 14 | No existe una sola prueba automatizada en todo el proyecto. | Agregar pruebas para los flujos críticos: login, apertura de orden y cobro. |
+
+---
+
+## Conclusión
+
+TallerPro sí implementa un patrón real de Chain of Responsibility, pero lo aplica solo a una ruta y duplica lógica de autenticación insegura (incluida la puerta trasera admin_bypass) en el resto de las rutas, algunas de las cuales (/entrega, /inventario) no tienen ningún control de acceso. A esto se suma inyección SQL sistemática, ausencia de transacciones en el cobro, un transporte de correo que nunca envía nada realmente, y código muerto (app.old.js). La prioridad de corrección sería: extender la cadena de Handlers (o un middleware real) a todas las rutas, eliminar la cookie admin_bypass, migrar todas las consultas a parametrizadas, envolver el cobro en una transacción, y configurar un transporte SMTP real.
