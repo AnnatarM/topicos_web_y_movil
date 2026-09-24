@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Registrar Pedido</title>
+</head>
+<body>
+    <h1>Registrar Nuevo Pedido</h1>
+    <form method="POST">
+        {% csrf_token %}
+        <label>Origen: <input type="text" name="origen" required></label><br><br>
+        <label>Destino: <input type="text" name="destino" required></label><br><br>
+        <label>Peso (kg): <input type="number" step="0.01" name="peso" required></label><br><br>
+        <button type="submit">Guardar Pedido</button>
+    </form>
+</body>
+</html>

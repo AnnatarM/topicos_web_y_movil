@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Seguimiento de Pedido</title>
+</head>
+<body>
+    <h1>Seguimiento del Pedido #{{ folio }}</h1>
+    <p><strong>Estado:</strong> {{ estado }}</p>
+    <p><strong>Origen:</strong> {{ origen }}</p>
+    <p><strong>Destino:</strong> {{ destino }}</p>
+    <p><strong>ETA (Estimado):</strong> {{ eta }}</p>
+    <a href="{% url 'crear_pedido' %}">Crear otro pedido</a>
+</body>
+</html>
