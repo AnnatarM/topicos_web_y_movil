@@ -69,7 +69,3 @@ Sin embargo, dos clics rápidos pueden producir dos solicitudes POST independien
 Si existiera dinero real, sería necesario utilizar idempotencia para garantizar que una misma operación no genere dos pedidos o dos cobros.
 
 En esta práctica no se implementa la idempotencia completa porque el pago es simulado.
-
-## Qué no se implementó
-
-No se implementaron Event Sourcing, CQRS, Redux, pagos reales, correo real ni aplicación móvil.
