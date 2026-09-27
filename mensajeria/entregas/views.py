@@ -24,5 +24,6 @@ def seguimiento_pedido_view(request, pk):
       'eta': pedido.eta,
       'origen': pedido.origen,
       'destino': pedido.destino,
+      'medio': pedido.medio,
   }
   return render(request, 'entregas/seguimiento.html', contexto)
