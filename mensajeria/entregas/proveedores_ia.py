@@ -1,14 +1,30 @@
 """
 Día 3 — Adapter
-===============
+Día 4 — Tolerancia a falla de IA
+=================================
 ProveedorIA*: proveedores falsos que simulan respuestas externas.
 Sugerencia:   formato interno común (lo que ve el dominio).
 Adapter*:     convierten el formato externo al formato interno.
+
+Día 4 agrega:
+  IA_CAIDA              — flag para simular que el proveedor está caído.
+  obtener_sugerencia_con_fallback() — nunca lanza excepción al dominio;
+                          si IA_CAIDA=True o cualquier error ocurre,
+                          devuelve una Sugerencia de fallback segura.
 """
 from __future__ import annotations
 import json
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
+
+# ---------------------------------------------------------------------------
+# Día 4 — Interruptor de falla (actívalo poniendo IA_CAIDA = True)
+# Para las pruebas se puede parchear directamente: proveedores_ia.IA_CAIDA = True
+# ---------------------------------------------------------------------------
+IA_CAIDA: bool = False
+
+# Medio que se usa cuando la IA no está disponible
+MEDIO_FALLBACK: str = 'camioneta'
 
 
 # ---------------------------------------------------------------------------
@@ -148,4 +164,44 @@ class AdapterXml:
         return Sugerencia(
             medio=medio,
             motivo=f'ProveedorXML sugirió vehiculo="{medio}" (via <suggestion>/<vehicle>)',
+        )
+
+
+# ---------------------------------------------------------------------------
+# Día 4 — Función de tolerancia a falla
+# ---------------------------------------------------------------------------
+
+def obtener_sugerencia_con_fallback(pedido_peso: float) -> Sugerencia:
+    """
+    Día 4 — Consulta la IA y adapta la respuesta al formato interno.
+
+    Si IA_CAIDA es True (o si ocurre cualquier excepción), captura el error
+    y devuelve una Sugerencia de fallback con MEDIO_FALLBACK.
+
+    El dominio (services.py) llama a esta función en lugar de instanciar
+    directamente el adapter, de modo que nunca recibe una excepción de IA.
+
+    Flujo normal:   ProveedorIAJson → AdapterJson → Sugerencia real
+    Flujo fallback: excepción capturada → Sugerencia(medio=MEDIO_FALLBACK)
+    """
+    if IA_CAIDA:
+        print(
+            '[IA] Proveedor marcado como caído (IA_CAIDA=True). '
+            f'Usando fallback: {MEDIO_FALLBACK}.'
+        )
+        return Sugerencia(
+            medio=MEDIO_FALLBACK,
+            motivo=f'Fallback automático — IA no disponible (IA_CAIDA=True).',
+        )
+
+    try:
+        proveedor = ProveedorIAJson()
+        adapter = AdapterJson(proveedor)
+        return adapter.obtener_sugerencia(pedido_peso)
+    except Exception as exc:  # pylint: disable=broad-except
+        print(f'[IA] Error inesperado al consultar proveedor: {exc}. '
+              f'Usando fallback: {MEDIO_FALLBACK}.')
+        return Sugerencia(
+            medio=MEDIO_FALLBACK,
+            motivo=f'Fallback automático — excepción capturada: {exc}.',
         )

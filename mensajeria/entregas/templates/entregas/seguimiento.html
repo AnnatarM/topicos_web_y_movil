@@ -1,16 +1,413 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
-    <title>Seguimiento de Pedido</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Seguimiento — Pedido #{{ folio }}</title>
+
+    <!-- Leaflet CSS (CDN) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
+    <style>
+        /* ──────────────────────────────────────────────
+           SISTEMA DE DISEÑO — B&N con acento verde
+           ────────────────────────────────────────────── */
+        :root {
+            --c-bg:      #f5f5f5;
+            --c-surface: #ffffff;
+            --c-border:  #e0e0e0;
+            --c-text:    #111111;
+            --c-muted:   #555555;
+            --c-subtle:  #888888;
+            --c-confirm: #1a9941;   /* verde — único acento */
+            --c-btn:     #111111;
+            --c-btn-hov: #333333;
+            --radius:    10px;
+            --shadow:    0 1px 6px rgba(0,0,0,.08);
+        }
+
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--c-bg);
+            color: var(--c-text);
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+
+        /* ──────────────────────────────────────────────
+           TARJETA
+           ────────────────────────────────────────────── */
+        .card {
+            background: var(--c-surface);
+            border-radius: var(--radius);
+            border: 1px solid var(--c-border);
+            box-shadow: var(--shadow);
+            max-width: 680px;
+            margin: 0 auto;
+            padding: 1.75rem 2rem 2rem;
+        }
+
+        /* ──────────────────────────────────────────────
+           ENCABEZADO
+           ────────────────────────────────────────────── */
+        .header {
+            display: flex;
+            align-items: center;
+            gap: .75rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1.25rem;
+            border-bottom: 1px solid var(--c-border);
+        }
+
+        .header__folio {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--c-text);
+            letter-spacing: -.01em;
+        }
+
+        /* Check verde — único acento de color */
+        .check {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: var(--c-confirm);
+            flex-shrink: 0;
+        }
+
+        .check svg {
+            width: 13px;
+            height: 13px;
+            stroke: #fff;
+            fill: none;
+            stroke-width: 2.5;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        /* El botón va al extremo derecho del encabezado */
+        .header__spacer { flex: 1; }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: .4rem;
+            padding: .45rem 1rem;
+            background: var(--c-btn);
+            color: #ffffff;
+            border-radius: 6px;
+            text-decoration: none;
+            font-size: .82rem;
+            font-weight: 600;
+            letter-spacing: .01em;
+            transition: background .15s;
+            white-space: nowrap;
+        }
+
+        .btn:hover { background: var(--c-btn-hov); }
+
+        /* ──────────────────────────────────────────────
+           RUTA (origen ──► destino)
+           ────────────────────────────────────────────── */
+        .ruta {
+            display: flex;
+            align-items: center;
+            gap: .6rem;
+            margin-bottom: 1.25rem;
+            flex-wrap: wrap;
+        }
+
+        .ruta__ciudad {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--c-text);
+        }
+
+        .ruta__linea {
+            flex: 1;
+            min-width: 32px;
+            height: 2px;
+            background: repeating-linear-gradient(
+                to right,
+                var(--c-text) 0 5px,
+                transparent 5px 10px
+            );
+        }
+
+        .ruta__flecha {
+            font-size: 1rem;
+            color: var(--c-text);
+            line-height: 1;
+        }
+
+        /* ──────────────────────────────────────────────
+           BLOQUE MAPA
+           ────────────────────────────────────────────── */
+        .mapa-bloque {
+            margin-bottom: 1.25rem;
+            border: 1px solid var(--c-border);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+
+        .mapa-bloque__titulo {
+            background: #f9f9f9;
+            padding: .5rem 1rem;
+            font-size: .7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .1em;
+            color: var(--c-muted);
+            border-bottom: 1px solid var(--c-border);
+        }
+
+        #mapa-leaflet {
+            height: 300px;
+            width: 100%;
+        }
+
+        /* Fallback cuando no hay coordenadas */
+        .mapa-fallback {
+            background: #fafafa;
+            padding: 1.25rem 1rem;
+            text-align: center;
+            color: var(--c-muted);
+            font-size: .88rem;
+        }
+
+        .mapa-fallback__ruta {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: .6rem;
+            margin-top: .6rem;
+            font-weight: 600;
+            color: var(--c-text);
+        }
+
+        .mapa-fallback__punto {
+            background: #fff;
+            border: 1px solid var(--c-border);
+            border-radius: 6px;
+            padding: .3rem .7rem;
+            font-size: .88rem;
+        }
+
+        .mapa-fallback__flecha { color: var(--c-subtle); }
+
+        /* ──────────────────────────────────────────────
+           DETALLES DEL PEDIDO
+           ────────────────────────────────────────────── */
+        .detalles {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: .6rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .detalle {
+            background: #fafafa;
+            border: 1px solid var(--c-border);
+            border-radius: 8px;
+            padding: .65rem .85rem;
+        }
+
+        .detalle__label {
+            font-size: .68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            color: var(--c-subtle);
+            margin-bottom: .2rem;
+        }
+
+        .detalle__valor {
+            font-size: .95rem;
+            font-weight: 600;
+            color: var(--c-text);
+        }
+
+        /* Pago — ocupa todo el ancho */
+        .detalle--pago {
+            grid-column: 1 / -1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: .4rem;
+        }
+
+        .pago__info { display: flex; flex-direction: column; gap: .15rem; }
+
+        .pago__tx {
+            font-size: .72rem;
+            color: var(--c-subtle);
+            font-family: 'Courier New', monospace;
+        }
+
+        .pago__monto {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--c-text);
+        }
+
+        .pago__badge {
+            font-size: .72rem;
+            font-weight: 700;
+            background: #e6f4ea;
+            color: var(--c-confirm);
+            border-radius: 4px;
+            padding: .2rem .6rem;
+            letter-spacing: .04em;
+        }
+    </style>
 </head>
+
 <body>
-    <h1>Seguimiento del Pedido #{{ folio }}</h1>
-    <p><strong>Estado:</strong> {{ estado }}</p>
-    <p><strong>Origen:</strong> {{ origen }}</p>
-    <p><strong>Destino:</strong> {{ destino }}</p>
-    <p><strong>Medio de entrega:</strong> {{ medio }}</p>
-    <p><strong>ETA (Estimado):</strong> {{ eta }}</p>
-    <a href="{% url 'crear_pedido' %}">Crear otro pedido</a>
+
+    <div class="card">
+
+        <!-- ── Encabezado ── -->
+        <div class="header">
+            <div class="header__folio">Pedido #{{ folio }}</div>
+
+            <!-- Check verde: único indicador de estado -->
+            <span class="check" title="Pedido confirmado" aria-label="Pedido confirmado">
+                <svg viewBox="0 0 16 16" aria-hidden="true">
+                    <polyline points="2.5 8.5 6.5 12.5 13.5 4.5"></polyline>
+                </svg>
+            </span>
+
+            <div class="header__spacer"></div>
+
+            <a class="btn" href="{% url 'crear_pedido' %}">
+                + Crear pedido
+            </a>
+        </div>
+
+        <!-- ── Ruta visual origen ──► destino ── -->
+        <div class="ruta">
+            <span class="ruta__ciudad">{{ origen }}</span>
+            <div class="ruta__linea" aria-hidden="true"></div>
+            <span class="ruta__flecha" aria-hidden="true">&#x25BA;</span>
+            <span class="ruta__ciudad">{{ destino }}</span>
+        </div>
+
+        <!-- ── Mapa interactivo Leaflet ── -->
+        <div class="mapa-bloque">
+            <div class="mapa-bloque__titulo">Ruta del pedido</div>
+
+            {% if lat_origen and lat_destino %}
+                <div id="mapa-leaflet"></div>
+            {% else %}
+                <div class="mapa-fallback">
+                    <span>Mapa no disponible para esta ubicación</span>
+                    <div class="mapa-fallback__ruta">
+                        <span class="mapa-fallback__punto">{{ origen }}</span>
+                        <span class="mapa-fallback__flecha">&#x25BA;</span>
+                        <span class="mapa-fallback__punto">{{ destino }}</span>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- ── Detalles del pedido ── -->
+        <div class="detalles">
+            <div class="detalle">
+                <div class="detalle__label">Medio de entrega</div>
+                <div class="detalle__valor">{{ medio }}</div>
+            </div>
+
+            <div class="detalle">
+                <div class="detalle__label">ETA estimado</div>
+                <div class="detalle__valor">{{ eta }}</div>
+            </div>
+
+            {% if monto_pago %}
+            <div class="detalle detalle--pago">
+                <div class="pago__info">
+                    <div class="detalle__label">Pago simulado</div>
+                    <div class="pago__monto">${{ monto_pago }} MXN</div>
+                    {% if id_transaccion %}
+                    <div class="pago__tx">TX: {{ id_transaccion }}</div>
+                    {% endif %}
+                </div>
+                <span class="pago__badge">APROBADO</span>
+            </div>
+            {% endif %}
+        </div>
+
+    </div><!-- /card -->
+
+    {% if lat_origen and lat_destino %}
+    <!-- Datos seguros para Leaflet generados por Django (sin riesgo XSS) -->
+    {{ origen|json_script:"datos-origen" }}
+    {{ destino|json_script:"datos-destino" }}
+
+    <!-- Leaflet JS (CDN) -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script>
+        (function () {
+            "use strict";
+
+            var latO = {{ lat_origen }};
+            var lonO = {{ lon_origen }};
+            var latD = {{ lat_destino }};
+            var lonD = {{ lon_destino }};
+
+            var txtOrigen  = JSON.parse(document.getElementById('datos-origen').textContent);
+            var txtDestino = JSON.parse(document.getElementById('datos-destino').textContent);
+
+            var mapa = L.map('mapa-leaflet').setView(
+                [(latO + latD) / 2, (lonO + lonD) / 2], 8
+            );
+
+            // Capa base CARTO Voyager con API key — proyecto universitario local.
+            // Atribución doble requerida: OpenStreetMap (datos) + CARTO (tiles).
+            L.tileLayer('https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?key=cb1_40f3_1_6c95f005bd2db26a75da9dfd', {
+                maxZoom: 19,
+                attribution:
+                    '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors ' +
+                    '&copy; <a href="https://carto.com/attributions">CARTO</a>'
+            }).addTo(mapa);
+
+            L.marker([latO, lonO])
+                .addTo(mapa)
+                .bindPopup('<strong>&#128228; Origen</strong><br>' + txtOrigen);
+
+            L.marker([latD, lonD])
+                .addTo(mapa)
+                .bindPopup('<strong>&#128229; Destino</strong><br>' + txtDestino);
+
+            L.polyline([[latO, lonO], [latD, lonD]], {
+                color: '#111111',
+                weight: 2.5,
+                opacity: 0.75,
+                dashArray: '8, 6'
+            }).addTo(mapa);
+
+            mapa.fitBounds(
+                L.latLngBounds([[latO, lonO], [latD, lonD]]),
+                { padding: [40, 40] }
+            );
+        })();
+    </script>
+    {% endif %}
+
 </body>
+
 </html>
