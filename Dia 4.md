@@ -64,8 +64,3 @@ PRG evita que una recarga posterior al POST vuelva a crear el pedido:
     → redirect
     → GET /pedidos/<id>/
 
-Sin embargo, dos clics rápidos pueden producir dos solicitudes POST independientes.
-
-Si existiera dinero real, sería necesario utilizar idempotencia para garantizar que una misma operación no genere dos pedidos o dos cobros.
-
-En esta práctica no se implementa la idempotencia completa porque el pago es simulado.

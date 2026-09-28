@@ -1,54 +1,33 @@
-"""
-Día 3 — Strategy
-================
-Contrato común: MedioDeEntrega
-Implementaciones: EntregaCamioneta, EntregaMotocicleta,
-                  EntregaBicicleta, EntregaDron
-"""
+# Strategy: cada medio de entrega encapsula su propio algoritmo para calcular
+# el ETA, evitando un bloque if/elif en la vista o el servicio.
+# La vista y registrar_pedido solo conocen MedioDeEntrega.planear(), nunca
+# las clases concretas.
 from __future__ import annotations
 import abc
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 
 @dataclass
 class Plan:
-    """Resultado que devuelve cualquier Strategy tras planear una entrega."""
     medio: str
     eta: str
     notas: str
 
 
 class MedioDeEntrega(abc.ABC):
-    """Contrato (Strategy) que deben cumplir todos los medios de entrega."""
-
     @abc.abstractmethod
-    def planear(self, pedido: Any, contexto: dict[str, Any]) -> Plan:
-        """
-        Recibe el pedido y un diccionario de contexto (p.ej. la Sugerencia
-        de la IA ya adaptada) y devuelve un Plan listo para guardar.
-        """
+    def planear(self, pedido: Any, contexto: dict[str, Any]) -> Plan: ...
 
 
 class EntregaCamioneta(MedioDeEntrega):
-    """Strategy para entregas en camioneta (cargas pesadas, rutas largas)."""
-
     def planear(self, pedido: Any, contexto: dict[str, Any]) -> Plan:
         peso = float(getattr(pedido, 'peso', 0))
-        if peso > 100:
-            eta = '48 horas (carga extra-pesada en camioneta)'
-        else:
-            eta = '24 horas (camioneta estándar)'
-        return Plan(
-            medio='camioneta',
-            eta=eta,
-            notas=f'Ruta terrestre. Peso declarado: {peso} kg.',
-        )
+        eta = '48 horas (carga extra-pesada en camioneta)' if peso > 100 else '24 horas (camioneta estándar)'
+        return Plan(medio='camioneta', eta=eta, notas=f'Ruta terrestre. Peso declarado: {peso} kg.')
 
 
 class EntregaMotocicleta(MedioDeEntrega):
-    """Strategy para entregas en motocicleta (rapidez en ciudad)."""
-
     def planear(self, pedido: Any, contexto: dict[str, Any]) -> Plan:
         return Plan(
             medio='motocicleta',
@@ -58,8 +37,6 @@ class EntregaMotocicleta(MedioDeEntrega):
 
 
 class EntregaBicicleta(MedioDeEntrega):
-    """Strategy para entregas en bicicleta (últma milla, eco-friendly)."""
-
     def planear(self, pedido: Any, contexto: dict[str, Any]) -> Plan:
         return Plan(
             medio='bicicleta',
@@ -69,8 +46,6 @@ class EntregaBicicleta(MedioDeEntrega):
 
 
 class EntregaDron(MedioDeEntrega):
-    """Strategy para entregas en dron (zonas de difícil acceso)."""
-
     def planear(self, pedido: Any, contexto: dict[str, Any]) -> Plan:
         return Plan(
             medio='dron',

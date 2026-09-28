@@ -1,15 +1,9 @@
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from .models import Pedido, Pago
 from .services import registrar_pedido
 
 
-# ---------------------------------------------------------------------------
-# Diccionario de coordenadas para ciudades mexicanas de prueba.
-# Resolución de presentación: la vista convierte el nombre de ciudad en
-# coordenadas para que la plantilla solo renderice datos preparados.
-# Si una ciudad no está en el dict, la vista pasa None y la plantilla
-# muestra el fallback sin romper la página.
-# ---------------------------------------------------------------------------
 _COORDENADAS: dict[str, tuple[float, float]] = {
     # Michoacán
     'morelia':          (19.7069, -101.1945),
@@ -82,59 +76,56 @@ _COORDENADAS: dict[str, tuple[float, float]] = {
 
 
 def _buscar_coordenadas(nombre_ciudad: str) -> tuple[float, float] | None:
-    """
-    Normaliza el nombre de ciudad y lo busca en el diccionario.
-    Devuelve (lat, lon) o None si no se encuentra.
-    La plantilla decide qué mostrar con esa información.
-    """
-    clave = nombre_ciudad.strip().lower()
-    return _COORDENADAS.get(clave)
+    return _COORDENADAS.get(nombre_ciudad.strip().lower())
 
 
+# PRG — crear_pedido_view recibe el formulario, delega a registrar_pedido()
+# y redirige al GET de seguimiento para evitar reenvíos al recargar.
 def crear_pedido_view(request):
     if request.method == 'POST':
-        # La vista delega el trámite a la capa de servicio
         pedido = registrar_pedido(request.POST)
-
-        # Patrón PRG (Post/Redirect/Get): Redirigimos al GET de seguimiento
         return redirect('seguimiento_pedido', pk=pedido.pk)
-
     return render(request, 'entregas/crear_pedido.html')
+
+
+# _datos_pedido extrae el subconjunto mínimo compartido entre la vista HTML
+# y la vista JSON (Día 5). Centralizar aquí evita duplicar la lógica de lectura.
+def _datos_pedido(pedido: Pedido) -> dict:
+    return {
+        'folio':  pedido.pk,
+        'estado': pedido.estado,
+        'eta':    pedido.eta,
+    }
 
 
 def seguimiento_pedido_view(request, pk):
     pedido = get_object_or_404(Pedido, pk=pk)
-
-    # Resolver coordenadas para el mapa interactivo.
-    # Si la ciudad no está en el diccionario, se pasa None y la plantilla
-    # muestra el fallback. La lógica de BD ya se ejecutó antes de llegar aquí.
     coord_origen  = _buscar_coordenadas(pedido.origen)
     coord_destino = _buscar_coordenadas(pedido.destino)
 
-    # Recuperar pago simulado si existe (pedidos viejos pueden no tenerlo)
     try:
         pago = pedido.pago
         monto_pago     = pago.monto
-        id_transaccion = str(pago.id_transaccion)[:8].upper()  # solo primeros 8 chars
+        id_transaccion = str(pago.id_transaccion)[:8].upper()
     except Pago.DoesNotExist:
         monto_pago     = None
         id_transaccion = None
 
-    # El contexto llega ya listo a la plantilla (sin SQL ni lógica metida ahí)
     contexto = {
-        'folio':          pedido.pk,
-        'estado':         pedido.estado,
-        'eta':            pedido.eta,
+        **_datos_pedido(pedido),
         'origen':         pedido.origen,
         'destino':        pedido.destino,
         'medio':          pedido.medio,
-        # Pago simulado
         'monto_pago':     monto_pago,
         'id_transaccion': id_transaccion,
-        # Coordenadas para Leaflet (None si la ciudad no está en el dict)
         'lat_origen':   coord_origen[0]  if coord_origen  else None,
         'lon_origen':   coord_origen[1]  if coord_origen  else None,
         'lat_destino':  coord_destino[0] if coord_destino else None,
         'lon_destino':  coord_destino[1] if coord_destino else None,
     }
     return render(request, 'entregas/seguimiento.html', contexto)
+
+
+# Día 5: el mismo pedido en JSON para clientes que no consumen HTML.
+def pedido_json_view(request, pk):
+    return JsonResponse(_datos_pedido(get_object_or_404(Pedido, pk=pk)))

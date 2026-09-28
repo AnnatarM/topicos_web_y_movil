@@ -1,13 +1,9 @@
-"""
-Día 3 — Fábrica simple
-======================
-crear(medio) → implementación concreta de MedioDeEntrega.
-
-Justificación de "fábrica simple" en lugar de Factory Method:
-- No existen familias de procesos que redefinan un hook.
-- El único problema es centralizar la creación a partir de un string.
-- Un dict de constructores cumple ese propósito sin sobre-ingeniería.
-"""
+# Fábrica simple: centraliza la creación de la implementación concreta de
+# MedioDeEntrega a partir de un string.
+# Se usa fábrica simple (dict de constructores) en lugar de Factory Method
+# porque no existen familias de trámites que redefinan un hook.
+# Para agregar un medio nuevo basta con registrarlo aquí; la vista y el
+# servicio no cambian.
 from __future__ import annotations
 
 from .medios import (
@@ -19,9 +15,6 @@ from .medios import (
 )
 
 
-# Registro de medios disponibles.
-# Para agregar un nuevo medio basta con añadir una entrada aquí,
-# sin tocar la vista ni el servicio.
 _REGISTRO: dict[str, type[MedioDeEntrega]] = {
     'camioneta':   EntregaCamioneta,
     'motocicleta': EntregaMotocicleta,
@@ -31,20 +24,10 @@ _REGISTRO: dict[str, type[MedioDeEntrega]] = {
 
 
 class MedioDesconocidoError(ValueError):
-    """Se lanza cuando se pide un medio que la fábrica no conoce."""
+    pass
 
 
 def crear(medio: str) -> MedioDeEntrega:
-    """
-    Fábrica simple: devuelve la implementación de MedioDeEntrega
-    correspondiente al string 'medio'.
-
-    Ejemplos:
-        crear('dron')        → EntregaDron()
-        crear('bicicleta')   → EntregaBicicleta()
-        crear('motocicleta') → EntregaMotocicleta()
-        crear('camioneta')   → EntregaCamioneta()
-    """
     clave = medio.strip().lower()
     clase = _REGISTRO.get(clave)
     if clase is None:

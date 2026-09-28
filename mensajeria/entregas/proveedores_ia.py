@@ -1,103 +1,55 @@
-"""
-Día 3 — Adapter
-Día 4 — Tolerancia a falla de IA
-=================================
-ProveedorIA*: proveedores falsos que simulan respuestas externas.
-Sugerencia:   formato interno común (lo que ve el dominio).
-Adapter*:     convierten el formato externo al formato interno.
-
-Día 4 agrega:
-  IA_CAIDA              — flag para simular que el proveedor está caído.
-  obtener_sugerencia_con_fallback() — nunca lanza excepción al dominio;
-                          si IA_CAIDA=True o cualquier error ocurre,
-                          devuelve una Sugerencia de fallback segura.
-"""
+# Adapter: los proveedores externos pueden responder en JSON o XML.
+# El dominio recibe siempre Sugerencia(medio, motivo) y nunca conoce
+# route_hint, score ni etiquetas XML.
+#
+# Día 4 — fallback: obtener_sugerencia_con_fallback() nunca propaga
+# excepciones de la IA al servicio. Si IA_CAIDA=True o cualquier error
+# ocurre, devuelve una Sugerencia segura con MEDIO_FALLBACK.
 from __future__ import annotations
-import json
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 
-# ---------------------------------------------------------------------------
-# Día 4 — Interruptor de falla (actívalo poniendo IA_CAIDA = True)
-# Para las pruebas se puede parchear directamente: proveedores_ia.IA_CAIDA = True
-# ---------------------------------------------------------------------------
 IA_CAIDA: bool = False
-
-# Medio que se usa cuando la IA no está disponible
 MEDIO_FALLBACK: str = 'camioneta'
 
 
-# ---------------------------------------------------------------------------
-# Formato interno del dominio
-# ---------------------------------------------------------------------------
-
 @dataclass
 class Sugerencia:
-    """
-    Representación interna de la recomendación de la IA.
-    El dominio NUNCA debe conocer 'route_hint', 'score' ni etiquetas XML.
-    """
-    medio: str          # p.ej. "dron", "camioneta", etc.
-    motivo: str         # texto legible para depuración / logs
+    #Formato interno del dominio. Aísla al servicio del formato de cada proveedor.
+    medio: str
+    motivo: str
 
-
-# ---------------------------------------------------------------------------
-# Proveedores externos falsos (no se conectan a ninguna API real)
-# ---------------------------------------------------------------------------
 
 class ProveedorIAJson:
-    """
-    Simula un proveedor externo cuya respuesta llega en JSON.
-
-    Formato externo:
-        {
-            "route_hint": "urbana",
-            "score": 0.91
-        }
-    El campo 'route_hint' determina el medio sugerido.
-    """
+    #Proveedor falso cuya respuesta llega en JSON.
+    #Formato: { "route_hint": "...", "score": 0.xx }
+    
 
     _MAPA_ROUTE_HINT: dict[str, str] = {
-        'urbana':     'motocicleta',
+        'urbana':       'motocicleta',
         'ultima_milla': 'bicicleta',
-        'aerea':      'dron',
-        'interurbana': 'camioneta',
+        'aerea':        'dron',
+        'interurbana':  'camioneta',
     }
 
     def consultar(self, pedido_peso: float) -> dict:
-        """
-        Devuelve un dict crudo simulando la respuesta JSON del proveedor.
-        La lógica de decisión es simplista a propósito (es un stub).
-        """
         if pedido_peso <= 5:
-            hint = 'aerea'
-            score = 0.95
+            hint, score = 'aerea', 0.95
         elif pedido_peso <= 10:
-            hint = 'ultima_milla'
-            score = 0.88
+            hint, score = 'ultima_milla', 0.88
         elif pedido_peso <= 30:
-            hint = 'urbana'
-            score = 0.91
+            hint, score = 'urbana', 0.91
         else:
-            hint = 'interurbana'
-            score = 0.78
-
-        # Respuesta cruda como el proveedor externo la daría
+            hint, score = 'interurbana', 0.78
         return {'route_hint': hint, 'score': score}
 
 
 class ProveedorIAXml:
-    """
-    Simula un proveedor externo cuya respuesta llega en XML.
-
-    Formato externo:
-        <suggestion>
-            <vehicle>dron</vehicle>
-        </suggestion>
-    """
+    #Proveedor falso cuya respuesta llega en XML.
+    #Formato: <suggestion><vehicle>...</vehicle></suggestion>
+    
 
     def consultar(self, pedido_peso: float) -> str:
-        """Devuelve una cadena XML cruda simulando la respuesta del proveedor."""
         if pedido_peso <= 5:
             vehiculo = 'dron'
         elif pedido_peso <= 10:
@@ -106,20 +58,11 @@ class ProveedorIAXml:
             vehiculo = 'motocicleta'
         else:
             vehiculo = 'camioneta'
-
-        # Respuesta cruda como el proveedor externo la daría
         return f'<suggestion><vehicle>{vehiculo}</vehicle></suggestion>'
 
 
-# ---------------------------------------------------------------------------
-# Adapters: traducen formato externo → Sugerencia (formato interno)
-# ---------------------------------------------------------------------------
-
 class AdapterJson:
-    """
-    Adapter para ProveedorIAJson.
-    Convierte el dict crudo {route_hint, score} en una Sugerencia interna.
-    """
+    #Convierte la respuesta JSON del proveedor en Sugerencia interna.
 
     _MAPA: dict[str, str] = {
         'urbana':       'motocicleta',
@@ -132,13 +75,10 @@ class AdapterJson:
         self._proveedor = proveedor
 
     def obtener_sugerencia(self, pedido_peso: float) -> Sugerencia:
-        datos_crudos: dict = self._proveedor.consultar(pedido_peso)
-
-        # Aquí ocurre la traducción: route_hint → medio, score → motivo
-        route_hint = datos_crudos['route_hint']
-        score = datos_crudos['score']
+        datos = self._proveedor.consultar(pedido_peso)
+        route_hint = datos['route_hint']
+        score = datos['score']
         medio = self._MAPA.get(route_hint, 'camioneta')
-
         return Sugerencia(
             medio=medio,
             motivo=f'ProveedorJSON sugirió route_hint="{route_hint}" (score={score})',
@@ -146,62 +86,28 @@ class AdapterJson:
 
 
 class AdapterXml:
-    """
-    Adapter para ProveedorIAXml.
-    Parsea la cadena XML cruda y la convierte en una Sugerencia interna.
-    """
+    #Convierte la respuesta XML del proveedor en Sugerencia interna.
 
     def __init__(self, proveedor: ProveedorIAXml):
         self._proveedor = proveedor
 
     def obtener_sugerencia(self, pedido_peso: float) -> Sugerencia:
-        xml_crudo: str = self._proveedor.consultar(pedido_peso)
-
-        # Parsear la estructura XML del proveedor
-        raiz = ET.fromstring(xml_crudo)
+        raiz = ET.fromstring(self._proveedor.consultar(pedido_peso))
         medio = raiz.findtext('vehicle') or 'camioneta'
-
         return Sugerencia(
             medio=medio,
-            motivo=f'ProveedorXML sugirió vehiculo="{medio}" (via <suggestion>/<vehicle>)',
+            motivo=f'ProveedorXML sugirió vehiculo="{medio}"',
         )
 
-
-# ---------------------------------------------------------------------------
-# Día 4 — Función de tolerancia a falla
-# ---------------------------------------------------------------------------
 
 def obtener_sugerencia_con_fallback(pedido_peso: float) -> Sugerencia:
-    """
-    Día 4 — Consulta la IA y adapta la respuesta al formato interno.
-
-    Si IA_CAIDA es True (o si ocurre cualquier excepción), captura el error
-    y devuelve una Sugerencia de fallback con MEDIO_FALLBACK.
-
-    El dominio (services.py) llama a esta función en lugar de instanciar
-    directamente el adapter, de modo que nunca recibe una excepción de IA.
-
-    Flujo normal:   ProveedorIAJson → AdapterJson → Sugerencia real
-    Flujo fallback: excepción capturada → Sugerencia(medio=MEDIO_FALLBACK)
-    """
+    #Consulta la IA; si falla o IA_CAIDA=True devuelve Sugerencia de fallback.
     if IA_CAIDA:
-        print(
-            '[IA] Proveedor marcado como caído (IA_CAIDA=True). '
-            f'Usando fallback: {MEDIO_FALLBACK}.'
-        )
-        return Sugerencia(
-            medio=MEDIO_FALLBACK,
-            motivo=f'Fallback automático — IA no disponible (IA_CAIDA=True).',
-        )
+        print(f'[IA] Proveedor marcado como caído (IA_CAIDA=True). Usando fallback: {MEDIO_FALLBACK}.')
+        return Sugerencia(medio=MEDIO_FALLBACK, motivo='Fallback automático — IA no disponible (IA_CAIDA=True).')
 
     try:
-        proveedor = ProveedorIAJson()
-        adapter = AdapterJson(proveedor)
-        return adapter.obtener_sugerencia(pedido_peso)
+        return AdapterJson(ProveedorIAJson()).obtener_sugerencia(pedido_peso)
     except Exception as exc:  # pylint: disable=broad-except
-        print(f'[IA] Error inesperado al consultar proveedor: {exc}. '
-              f'Usando fallback: {MEDIO_FALLBACK}.')
-        return Sugerencia(
-            medio=MEDIO_FALLBACK,
-            motivo=f'Fallback automático — excepción capturada: {exc}.',
-        )
+        print(f'[IA] Error inesperado: {exc}. Usando fallback: {MEDIO_FALLBACK}.')
+        return Sugerencia(medio=MEDIO_FALLBACK, motivo=f'Fallback automático — excepción capturada: {exc}.')
