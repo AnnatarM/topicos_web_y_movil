@@ -1,0 +1,13 @@
+# Caché de Python
+__pycache__/
+*.py[cod]
+
+# Entornos virtuales
+venv/
+.venv/
+
+# El Random Forest pesa ~50 MB; se regenera con entrenar_modelo.py
+modelo_bosque.joblib
+
+# Gráficas generadas por las actividades
+*.png
