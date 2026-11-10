@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Crear pedido de entrega</title>
+
+  <style>
+    :root {
+      --fondo: #f4f6f8;
+      --tarjeta: #ffffff;
+      --texto: #1a2332;
+      --muted: #5a6a7a;
+      --borde: #d5dde5;
+      --accento: #0b6e4f;
+      --accento-suave: #e6f4ef;
+      --aviso: #8a4500;
+      --aviso-suave: #fff4e8;
+      --error: #9b1c1c;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: var(--fondo);
+      color: var(--texto);
+      line-height: 1.45;
+    }
+
+    main {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 2rem 1.25rem 3rem;
+    }
+
+    h1 {
+      margin: 0 0 0.35rem;
+      font-size: 1.6rem;
+    }
+
+    .intro {
+      color: var(--muted);
+      margin: 0 0 1.5rem;
+      max-width: 46rem;
+    }
+
+    form {
+      background: var(--tarjeta);
+      border: 1px solid var(--borde);
+      border-radius: 10px;
+      padding: 1.25rem;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.9rem 1rem;
+    }
+
+    label {
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+
+    input,
+    select {
+      width: 100%;
+      font: inherit;
+      padding: 0.55rem 0.65rem;
+      border: 1px solid var(--borde);
+      border-radius: 6px;
+      background: #fff;
+      color: var(--texto);
+    }
+
+    input:focus,
+    select:focus,
+    button:focus-visible {
+      outline: 3px solid var(--accento-suave);
+      outline-offset: 2px;
+      border-color: var(--accento);
+    }
+
+    .ancho-completo {
+      grid-column: 1 / -1;
+    }
+
+    .acciones {
+      grid-column: 1 / -1;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      align-items: center;
+      margin-top: 0.4rem;
+    }
+
+    button {
+      font: inherit;
+      font-weight: 600;
+      border: none;
+      border-radius: 6px;
+      padding: 0.65rem 1.1rem;
+      cursor: pointer;
+    }
+
+    button.primario {
+      background: var(--accento);
+      color: #fff;
+    }
+
+    button.secundario {
+      background: #e8eef3;
+      color: var(--texto);
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: wait;
+    }
+
+    #resultado {
+      margin-top: 1.25rem;
+      background: var(--tarjeta);
+      border: 1px solid var(--borde);
+      border-radius: 10px;
+      padding: 1.1rem 1.25rem;
+      display: none;
+      overflow-wrap: anywhere;
+    }
+
+    #resultado.visible {
+      display: block;
+    }
+
+    #resultado.error {
+      border-color: #e2b4b4;
+      background: #fff5f5;
+    }
+
+    #resultado h2 {
+      margin: 0 0 0.5rem;
+      font-size: 1.15rem;
+    }
+
+    #resultado .medio {
+      display: inline-block;
+      background: var(--accento-suave);
+      color: var(--accento);
+      font-weight: 700;
+      padding: 0.2rem 0.55rem;
+      border-radius: 999px;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      font-size: 0.85rem;
+    }
+
+    .aviso {
+      margin: 0.75rem 0;
+      padding: 0.7rem 0.85rem;
+      background: var(--aviso-suave);
+      border-left: 3px solid var(--aviso);
+      border-radius: 4px;
+      color: #5c3a00;
+      font-size: 0.92rem;
+    }
+
+    #resultado pre {
+      margin: 0.85rem 0 0;
+      padding: 0.75rem;
+      background: #f0f3f6;
+      border-radius: 6px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      font-size: 0.82rem;
+    }
+
+    details {
+      margin-top: 1rem;
+    }
+
+    summary {
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .nota {
+      color: var(--muted);
+      font-size: 0.88rem;
+      margin-top: 1rem;
+    }
+
+    code {
+      background: #e8eef3;
+      padding: 0.1rem 0.3rem;
+      border-radius: 4px;
+    }
+
+    @media (max-width: 640px) {
+      form {
+        grid-template-columns: 1fr;
+      }
+
+      main {
+        padding: 1.25rem 0.75rem 2rem;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main>
+    <h1>Crear pedido de entrega</h1>
+
+    <p class="intro">
+      Completa los datos del paquete para crear un pedido.
+      El formulario envía la solicitud al gateway mediante
+      <code>POST /pedidos</code> y muestra el folio,
+      el medio seleccionado y el motivo.
+    </p>
+
+    <form id="form-paquete">
+      <label class="ancho-completo">
+        Modelo
+        <select id="modelo" disabled>
+          <option value="arbol" selected>Árbol de decisión</option>
+        </select>
+      </label>
+
+      <label>
+        Distancia (km)
+        <input
+          name="distancia_km"
+          type="number"
+          min="0"
+          step="any"
+          value="12.64"
+          required
+        >
+      </label>
+
+      <label>
+        Peso (kg)
+        <input
+          name="peso_kg"
+          type="number"
+          min="0"
+          step="any"
+          value="0.31"
+          required
+        >
+      </label>
+
+      <label>
+        Largo (cm)
+        <input
+          name="largo_cm"
+          type="number"
+          min="0"
+          step="any"
+          value="11.7"
+          required
+        >
+      </label>
+
+      <label>
+        Ancho (cm)
+        <input
+          name="ancho_cm"
+          type="number"
+          min="0"
+          step="any"
+          value="7.6"
+          required
+        >
+      </label>
+
+      <label>
+        Alto (cm)
+        <input
+          name="alto_cm"
+          type="number"
+          min="0"
+          step="any"
+          value="10.6"
+          required
+        >
+      </label>
+
+      <label>
+        Volumen (L)
+        <input
+          name="volumen_l"
+          type="number"
+          min="0"
+          step="any"
+          value="0.94"
+          required
+        >
+      </label>
+
+      <label>
+        Valor declarado (MXN)
+        <input
+          name="valor_declarado_mxn"
+          type="number"
+          min="0"
+          step="any"
+          value="4603"
+          required
+        >
+      </label>
+
+      <label>
+        Hora de salida (0–23)
+        <input
+          name="hora_salida"
+          type="number"
+          min="0"
+          max="23"
+          step="1"
+          value="3"
+          required
+        >
+      </label>
+
+      <label>
+        Frágil
+        <select name="fragil">
+          <option value="0" selected>No</option>
+          <option value="1">Sí</option>
+        </select>
+      </label>
+
+      <label>
+        Refrigerado
+        <select name="refrigerado">
+          <option value="0" selected>No</option>
+          <option value="1">Sí</option>
+        </select>
+      </label>
+
+      <label>
+        Prioridad
+        <select name="prioridad">
+          <option value="normal">normal</option>
+          <option value="express">express</option>
+          <option value="mismo_dia" selected>mismo_dia</option>
+        </select>
+      </label>
+
+      <label>
+        Zona destino
+        <select name="zona_destino">
+          <option value="centro">centro</option>
+          <option value="residencial">residencial</option>
+          <option value="periferia" selected>periferia</option>
+          <option value="rural">rural</option>
+        </select>
+      </label>
+
+      <label>
+        Clima
+        <select name="clima">
+          <option value="despejado" selected>despejado</option>
+          <option value="lluvia">lluvia</option>
+          <option value="viento_fuerte">viento_fuerte</option>
+        </select>
+      </label>
+
+      <label>
+        Tráfico
+        <select name="trafico">
+          <option value="bajo">bajo</option>
+          <option value="medio" selected>medio</option>
+          <option value="alto">alto</option>
+        </select>
+      </label>
+
+      <div class="acciones">
+        <button
+          type="submit"
+          class="primario"
+          id="btn-enviar"
+        >
+          Crear pedido
+        </button>
+
+        <button
+          type="button"
+          class="secundario"
+          id="btn-noche"
+        >
+          Ejemplo: noche (descarta dron)
+        </button>
+
+        <button
+          type="button"
+          class="secundario"
+          id="btn-dia"
+        >
+          Ejemplo: tarde
+        </button>
+      </div>
+    </form>
+
+    <section
+      id="resultado"
+      aria-live="polite"
+      aria-atomic="true"
+      aria-busy="false"
+    ></section>
+
+    <p class="nota">
+      API: <code>POST /pedidos</code> con los 14 campos del paquete.
+      Los botones de ejemplo cargan los datos y crean un pedido.
+      El folio se genera cuando la solicitud termina correctamente.
+    </p>
+  </main>
+
+  <script>
+    const form = document.getElementById("form-paquete");
+    const resultado = document.getElementById("resultado");
+    const btnEnviar = document.getElementById("btn-enviar");
+    const btnNoche = document.getElementById("btn-noche");
+    const btnDia = document.getElementById("btn-dia");
+
+    const camposNumericos = [
+      "distancia_km",
+      "peso_kg",
+      "largo_cm",
+      "ancho_cm",
+      "alto_cm",
+      "volumen_l",
+      "fragil",
+      "refrigerado",
+      "valor_declarado_mxn",
+      "hora_salida"
+    ];
+
+    let enviando = false;
+
+    function leerPaquete() {
+      const datos = Object.fromEntries(new FormData(form).entries());
+
+      for (const campo of camposNumericos) {
+        datos[campo] = Number(datos[campo]);
+      }
+
+      return datos;
+    }
+
+    function agregarTexto(etiqueta, texto, clase = "") {
+      const elemento = document.createElement(etiqueta);
+      elemento.textContent = texto;
+
+      if (clase) {
+        elemento.className = clase;
+      }
+
+      resultado.appendChild(elemento);
+      return elemento;
+    }
+
+    function mostrar(ok, titulo, cuerpo) {
+      resultado.className = "visible" + (ok ? "" : " error");
+      resultado.replaceChildren();
+
+      agregarTexto("h2", titulo);
+
+      if (ok) {
+        agregarTexto("p", "Folio: " + cuerpo.folio);
+        agregarTexto("p", "Medio final: " + cuerpo.medio, "medio");
+        agregarTexto("p", "Motivo: " + cuerpo.motivo);
+      } else {
+        agregarTexto(
+          "p",
+          cuerpo.error || "No fue posible completar la solicitud"
+        );
+
+        if (cuerpo.motivo) {
+          agregarTexto("p", cuerpo.motivo, "aviso");
+        }
+
+        if (cuerpo.plan_b) {
+          agregarTexto("p", "Plan B: " + cuerpo.plan_b);
+        }
+
+        if (cuerpo.pedido_creado === false) {
+          agregarTexto("p", "No se creó un pedido.");
+        }
+      }
+
+      const detalles = document.createElement("details");
+      const resumen = document.createElement("summary");
+      const json = document.createElement("pre");
+
+      resumen.textContent = "JSON completo";
+      json.textContent = JSON.stringify(cuerpo, null, 2);
+
+      detalles.append(resumen, json);
+      resultado.appendChild(detalles);
+    }
+
+    function cambiarEstado(ocupado) {
+      enviando = ocupado;
+      btnEnviar.disabled = ocupado;
+      btnNoche.disabled = ocupado;
+      btnDia.disabled = ocupado;
+      btnEnviar.textContent = ocupado ? "Creando pedido…" : "Crear pedido";
+      resultado.setAttribute("aria-busy", String(ocupado));
+    }
+
+    form.addEventListener("submit", async (evento) => {
+      evento.preventDefault();
+
+      if (enviando) {
+        return;
+      }
+
+      const paquete = leerPaquete();
+
+      cambiarEstado(true);
+      resultado.className = "visible";
+      resultado.replaceChildren();
+      agregarTexto("p", "Procesando pedido…");
+
+      try {
+        // Ruta relativa: el navegador solo se comunica con el Gateway.
+        const respuesta = await fetch("/pedidos", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(paquete)
+        });
+
+        const texto = await respuesta.text();
+        let cuerpo;
+
+        try {
+          cuerpo = JSON.parse(texto);
+        } catch {
+          throw new Error(
+            "El Gateway respondió HTTP " +
+            respuesta.status +
+            " sin un cuerpo JSON válido."
+          );
+        }
+
+        if (
+          cuerpo === null ||
+          typeof cuerpo !== "object" ||
+          Array.isArray(cuerpo)
+        ) {
+          throw new Error("El servidor devolvió una respuesta inesperada.");
+        }
+
+        if (!respuesta.ok) {
+          mostrar(false, "Error — HTTP " + respuesta.status, cuerpo);
+          return;
+        }
+
+        if (
+          typeof cuerpo.folio !== "string" ||
+          typeof cuerpo.medio !== "string" ||
+          typeof cuerpo.motivo !== "string"
+        ) {
+          throw new Error(
+            "La respuesta no contiene el folio, medio y motivo esperados."
+          );
+        }
+
+        mostrar(
+          true,
+          "Pedido creado — HTTP " + respuesta.status,
+          cuerpo
+        );
+      } catch (error) {
+        mostrar(false, "No se pudo completar la solicitud", {
+          error: error.message,
+          detalle:
+            "Si hubo un problema de comunicación, verifica si el pedido " +
+            "se creó antes de volver a enviarlo."
+        });
+      } finally {
+        cambiarEstado(false);
+      }
+    });
+
+    function cargarEjemplo(datos) {
+      if (enviando) {
+        return;
+      }
+
+      for (const [campo, valor] of Object.entries(datos)) {
+        form.elements.namedItem(campo).value = String(valor);
+      }
+
+      form.requestSubmit();
+    }
+
+    btnNoche.addEventListener("click", () => {
+      cargarEjemplo({
+        distancia_km: 12.64,
+        peso_kg: 0.31,
+        largo_cm: 11.7,
+        ancho_cm: 7.6,
+        alto_cm: 10.6,
+        volumen_l: 0.94,
+        valor_declarado_mxn: 4603,
+        hora_salida: 3,
+        fragil: 0,
+        refrigerado: 0,
+        prioridad: "mismo_dia",
+        zona_destino: "periferia",
+        clima: "despejado",
+        trafico: "medio"
+      });
+    });
+
+    btnDia.addEventListener("click", () => {
+      cargarEjemplo({
+        distancia_km: 8.95,
+        peso_kg: 0.54,
+        largo_cm: 17.3,
+        ancho_cm: 10.7,
+        alto_cm: 15.0,
+        volumen_l: 2.78,
+        valor_declarado_mxn: 789,
+        hora_salida: 16,
+        fragil: 0,
+        refrigerado: 0,
+        prioridad: "normal",
+        zona_destino: "periferia",
+        clima: "despejado",
+        trafico: "medio"
+      });
+    });
+  </script>
+</body>
+</html>

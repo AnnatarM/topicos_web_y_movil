@@ -1,0 +1,16 @@
+{
+  "distancia_km": 12.64,
+  "peso_kg": 0.31,
+  "largo_cm": 11.7,
+  "ancho_cm": 7.6,
+  "alto_cm": 10.6,
+  "volumen_l": 0.94,
+  "fragil": 0,
+  "refrigerado": 0,
+  "valor_declarado_mxn": 4603,
+  "prioridad": "mismo_dia",
+  "zona_destino": "periferia",
+  "clima": "despejado",
+  "hora_salida": 3,
+  "trafico": "medio"
+}
