@@ -1,4 +1,4 @@
-# Simulacro de examen — Microservicios, gateway y el monolito con API
+# Examen — Microservicios, gateway y el monolito con API
 
 **Tópicos Selectos de Tecnologías Web y Móvil**
 
